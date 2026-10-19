@@ -24,6 +24,13 @@ class Mobject:
     # Attribute names shared (not copied) between frame snapshots, e.g. large
     # image arrays. Replace them rather than mutating them in place.
     _no_copy = ("updaters",)
+    # How a Transform shows two versions it can't interpolate: "blend" both
+    # at once (images), or "sequential" (old fades out, then new fades in),
+    # which keeps text from ever being double-printed.
+    crossfade_style = "blend"
+    # True when children are drawn in this mobject's own coordinate space
+    # (e.g. a Plane); such mobjects always cross-fade as a whole.
+    _children_in_own_space = False
 
     def __init__(self, opacity=1.0, z=0, name=None):
         self.opacity = opacity
@@ -32,7 +39,7 @@ class Mobject:
         self.name = name
         self.submobjects = []
         self.updaters = []
-        self._crossfade = None  # (start, end, alpha) while Transform can't lerp
+        self._crossfade = None  # (start, end, alpha, own_only) mid-Transform
 
     # ── Structure ──────────────────────────────────────────────────────
     def add(self, *mobjects):
@@ -211,9 +218,16 @@ class Mobject:
     # ── Drawing ────────────────────────────────────────────────────────
     def render(self, ctx, opacity=1.0, progress=1.0):
         if self._crossfade is not None:
-            start, end, a = self._crossfade
-            start.render(ctx, opacity * (1 - a), progress)
-            end.render(ctx, opacity * a, progress)
+            start, end, a, own_only = self._crossfade
+            if start.crossfade_style == "sequential":
+                a_out, a_in = max(0.0, 1 - 2 * a), max(0.0, 2 * a - 1)
+            else:
+                a_out, a_in = 1 - a, a
+            start.render(ctx, opacity * a_out, progress)
+            end.render(ctx, opacity * a_in, progress)
+            if own_only:     # children were interpolated separately
+                op = opacity * (start.opacity * (1 - a) + end.opacity * a)
+                self.render_children(ctx, op, progress * self.progress)
             return
         alpha = opacity * self.opacity
         p = progress * self.progress
@@ -312,8 +326,10 @@ def interpolate_mobject(start, end, alpha):
     """A new mobject part-way from ``start`` to ``end``.
 
     Numbers, arrays, and ``*color*`` attributes are interpolated; children
-    are matched pairwise. Any mobject whose non-numeric state differs (e.g.
-    different text) becomes a cross-fade between its two versions.
+    are matched pairwise. A mobject whose own non-numeric state differs (e.g.
+    different text, a different image) cross-fades its own drawing, while
+    its children keep interpolating, so a panel's image can blend while its
+    title fades text-style.
     """
     if alpha <= 0:
         return start.copy()
@@ -321,11 +337,11 @@ def interpolate_mobject(start, end, alpha):
         return end.copy()
     if type(start) is not type(end):
         return _crossfade(start, end, alpha)
+    children = _match_children(start, end, alpha)
     new = start.__class__.__new__(start.__class__)
     try:
         for k in set(start.__dict__) | set(end.__dict__):
-            if k in ("_crossfade",):
-                new.__dict__[k] = None
+            if k in ("_crossfade", "submobjects"):
                 continue
             if k not in start.__dict__ or k not in end.__dict__:
                 raise _Incompatible(k)
@@ -339,13 +355,36 @@ def interpolate_mobject(start, end, alpha):
             else:
                 new.__dict__[k] = _lerp(a, b, alpha, k)
     except _Incompatible:
+        if not children or start._children_in_own_space:
+            return _crossfade(start, end, alpha)
+        new = start.copy()
+        new.submobjects = children
+        new._crossfade = (_shell(start), _shell(end), alpha, True)
+        return new
+    if children is None:
         return _crossfade(start, end, alpha)
+    new.submobjects = children
+    new._crossfade = None
     return new
+
+
+def _match_children(start, end, alpha):
+    a, b = start.submobjects, end.submobjects
+    if len(a) != len(b) or any(type(x) is not type(y) for x, y in zip(a, b)):
+        return None
+    return [interpolate_mobject(x, y, alpha) for x, y in zip(a, b)]
+
+
+def _shell(m):
+    """``m`` without its children (its own drawing only)."""
+    c = m.copy()
+    c.submobjects = []
+    return c
 
 
 def _crossfade(start, end, alpha):
     new = start.copy()
-    new._crossfade = (start.copy(), end.copy(), alpha)
+    new._crossfade = (start.copy(), end.copy(), alpha, False)
     return new
 
 

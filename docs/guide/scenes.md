@@ -13,25 +13,47 @@ at draft resolution (`dpi=50`) and final resolution without changing code.
 
 ## Timing
 
-| Call | Frames |
-|---|---|
-| `self.play(anim)` | `run_time / frame_ms`, i.e. 2 s → 4 frames at 500 ms |
-| `self.play(anim, run_time=4)` | 8 frames |
-| `self.wait()` | one frame held for `hold_ms` (800 ms) |
-| `self.wait(3)` | one frame held for 3 s |
-| last frame | held for `final_hold_ms` (60 s) |
+Durations are in **seconds** and don't depend on how smooth the GIF is:
 
-All of these come from the [`Theme`](#theme). To make smoother (but larger)
-GIFs, lower `frame_ms`.
+| Call | Lasts |
+|---|---|
+| `self.play(anim)` | 2 s (the default `run_time`) |
+| `self.play(anim, run_time=4)` | 4 s |
+| `self.wait()` | 0.8 s (`hold_ms`) |
+| `self.wait(3)` | 3 s |
+| last frame | held 60 s (`final_hold_ms`) so the slide sits still |
+
+## Smoothness
+
+Choose how many frames fill that time when you render:
+
+```python
+scene.render_gif("slide.gif")                       # "slide": 500 ms frames (default)
+scene.render_gif("smooth.gif", smoothness="smooth")  # 200 ms frames
+scene.render_gif("fluid.gif", smoothness="fluid")    # 100 ms frames
+scene.render_gif("custom.gif", smoothness=80)        # any frame length in ms
+```
+
+| Smoothness | Frame | Feel | Size |
+|---|---|---|---|
+| `"slide"` | 500 ms | stepped, deliberate; matches the course style guide | smallest |
+| `"smooth"` | 200 ms | gentle motion | ~2.5× |
+| `"fluid"` | 100 ms | video-like | ~5× |
+
+The scene takes just as long at every setting; only the frame count changes.
+Identical frames (holds, slow sweeps) are merged in the GIF, so the size grows
+with the motion, not with the duration.
 
 ## Theme
+
+Colors, font sizes, DPI, and timing defaults live in a `Theme`:
 
 ```python
 import dataclasses
 from pixelmotion import DEFAULT_THEME
 
-smooth = dataclasses.replace(DEFAULT_THEME, frame_ms=100)
-MyScene(theme=smooth).render_gif("smooth.gif")
+web = dataclasses.replace(DEFAULT_THEME, gif_loop=0, final_hold_ms=3000)
+MyScene(theme=web).render_gif("loops_forever.gif")
 ```
 
 ::: pixelmotion.theme.Theme

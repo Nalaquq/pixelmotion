@@ -30,6 +30,13 @@ info = [
 ]
 ```
 
+By default the panel **spreads** its items to fill the box. Spare height goes
+between items, with more before a heading and less between a heading and its
+text, so sections stay grouped. Gaps are capped, so a short list ends up
+centered rather than scattered. For a custom panel, use
+`InfoPanel(items, region, valign="top")` or `valign="center"` to keep natural
+spacing instead.
+
 Reveal items one at a time with
 `self.play(LaggedStart(*[FadeIn(i) for i in self.info_panel.items]))`.
 A warning is raised if the content overflows the box.

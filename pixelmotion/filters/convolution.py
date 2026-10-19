@@ -69,7 +69,7 @@ class Convolve(Animation):
     cells : list of (r, c), optional
         Which output cells to visit (default: all, in reading order).
     time_per_cell : float
-        Seconds per window position (default: one frame).
+        Seconds the window rests on each position (default 0.5).
     flip : bool
         Flip the kernel first (true convolution) instead of correlation.
     show_sum : bool
@@ -80,17 +80,15 @@ class Convolve(Animation):
     The window outlines are added for the sweep and removed afterwards.
     """
 
-    def __init__(self, image, kernel, output, cells=None, time_per_cell=None,
+    def __init__(self, image, kernel, output, cells=None, time_per_cell=0.5,
                  window_color=ORANGE, flip=False, show_sum=True, **kwargs):
-        from ..theme import DEFAULT_THEME
         k = kernel.values[::-1, ::-1] if flip else kernel.values
         self.result = correlate_valid(np.nan_to_num(image.values), k)
         if cells is None:
             cells = [(r, c) for r in range(self.result.shape[0])
                      for c in range(self.result.shape[1])]
         self.cells = list(cells)
-        tpc = DEFAULT_THEME.frame_ms / 1000 if time_per_cell is None else time_per_cell
-        kwargs.setdefault("run_time", tpc * len(self.cells))
+        kwargs.setdefault("run_time", time_per_cell * len(self.cells))
         super().__init__(output, rate_func=linear, **kwargs)
         self.image, self.kernel, self.output = image, kernel, output
         self.window_color = window_color

@@ -7,8 +7,6 @@ on screen, and labels drawn on the vector they describe.
 
 from dataclasses import dataclass, field
 
-from matplotlib.text import Text
-
 MIN_ALPHA = 0.3     # ignore labels still fading in / out
 SHRINK_PX = 2       # tolerate glyph boxes that merely touch
 
@@ -49,9 +47,9 @@ class OverlapReport:
         return "\n".join(str(i) for i in self.issues)
 
 
-def _visible_texts(fig, renderer):
+def _visible_texts(texts, renderer):
     out = []
-    for t in fig.findobj(Text):
+    for t in texts:
         s = t.get_text()
         if not s.strip() or not t.get_visible():
             continue
@@ -92,7 +90,7 @@ def _segment_hits_box(p, q, box):
 
 
 def check_frame(ctx, renderer, frame, report):
-    texts = _visible_texts(ctx.fig, renderer)
+    texts = _visible_texts(ctx.drawn_texts, renderer)
     for i in range(len(texts)):
         for j in range(i + 1, len(texts)):
             (sa, ba), (sb, bb) = texts[i], texts[j]

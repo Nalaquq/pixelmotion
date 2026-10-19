@@ -104,10 +104,23 @@ class InfoPanel(Group):
     ``panel.items[i]`` is the i-th entry (a Group of its wrapped lines), so
     you can reveal them one by one with ``LaggedStart(*[FadeIn(i) for i in
     panel.items])``.
+
+    Parameters
+    ----------
+    items : list
+        Entries as described above.
+    region : Region
+        The box's area (a Slide passes ``self.left``).
+    valign : {"spread", "center", "top"}
+        "spread" (default) shares spare height between entries, more before
+        headings and less under them, so the box looks full but sections
+        stay grouped. "center" keeps natural spacing, centered vertically.
+    max_gap : float
+        Most extra space (inches) "spread" adds between two entries.
     """
 
     def __init__(self, items, region, pad=0.3, line_spacing=1.45, heading_size=None,
-                 body_size=None, align="center", **kwargs):
+                 body_size=None, align="center", valign="spread", max_gap=0.7, **kwargs):
         from ..theme import DEFAULT_THEME
         th = DEFAULT_THEME
         hs = heading_size or th.heading_size
@@ -117,34 +130,55 @@ class InfoPanel(Group):
         super().__init__(box, **kwargs)
         inner = region.inset(pad)
         x = {"center": inner.center[0], "left": inner.left}[align]
-        y = inner.top
-        for k, item in enumerate(items):
+
+        # Pass 1: style, wrap, and measure each entry.
+        entries = []   # (kind, lines, style, height)
+        for item in items:
             if item == "":
-                y -= bs / 72 * line_spacing * 0.7
-                self.add(Group(name="gap"))
+                entries.append(("gap", [], None, bs / 72 * line_spacing * 0.7))
                 continue
             if isinstance(item, tuple):
-                text, color = item
+                kind, (text, color) = "color", item
                 style = dict(size=bs + 1, color=color, weight="bold")
             elif item.startswith("# "):
-                text = item[2:]
+                kind, text = "heading", item[2:]
                 style = dict(size=hs, color=ACCENT, weight="bold")
-                if k > 0:
-                    y -= bs / 72 * 0.5
             elif item.startswith("~ "):
-                text = item[2:]
+                kind, text = "aside", item[2:]
                 style = dict(size=bs, color=SUB)
             else:
-                text = item
+                kind, text = "body", item
                 style = dict(size=bs, color=TEXT)
             lines = wrap(text, inner.w, style["size"], style.get("weight", "normal"))
-            group = Group(name=text[:24])
-            for line in lines:
-                group.add(Text(line, pos=(x, y), ha=align, va="top", **style))
-                y -= style["size"] / 72 * line_spacing
+            entries.append((kind, lines, style, len(lines) * style["size"] / 72 * line_spacing))
+
+        # Pass 2: share out the spare height. Weights keep a heading close to
+        # its text and give section breaks the most air.
+        weights = []
+        for prev, nxt in zip(entries, entries[1:]):
+            if prev[0] == "heading":
+                weights.append(0.35)
+            elif nxt[0] == "heading" or "gap" in (prev[0], nxt[0]):
+                weights.append(1.6)
+            else:
+                weights.append(1.0)
+        spare = inner.h - sum(e[3] for e in entries)
+        extra = [0.0] * len(weights)
+        if valign == "spread" and spare > 0 and weights:
+            unit = min(spare / sum(weights), max_gap / max(weights))
+            extra = [w * unit for w in weights]
+        leftover = max(spare - sum(extra), 0)
+        y = inner.top - (0 if valign == "top" else leftover / 2)
+
+        for k, (kind, lines, style, height) in enumerate(entries):
+            group = Group(name="gap" if kind == "gap" else lines[0][:24])
+            for i, line in enumerate(lines):
+                group.add(Text(line, pos=(x, y - i * style["size"] / 72 * line_spacing),
+                               ha=align, va="top", **style))
             self.add(group)
-        if y < inner.bottom:
-            warnings.warn(f"InfoPanel content overflows its box by {inner.bottom - y:.2f} in; "
+            y -= height + (extra[k] if k < len(extra) else 0)
+        if spare < 0:
+            warnings.warn(f"InfoPanel content overflows its box by {-spare:.2f} in; "
                           "shorten the text or reduce body_size.", stacklevel=2)
 
     @property

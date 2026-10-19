@@ -6,6 +6,7 @@ import matplotlib
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from matplotlib.text import Text
 from PIL import Image
 
 
@@ -27,6 +28,7 @@ class RenderContext:
         self.theme = theme
         self.tf = _identity
         self.segments = []        # (ax, Nx2 data points, label) for overlap checks
+        self.drawn_texts = []     # every Text actually painted in this frame
         self._canvas = None
         self._n_axes = 0
         self.ax = self.canvas
@@ -81,6 +83,23 @@ class RenderContext:
         self.segments.append((self.ax, np.asarray(points, float), label))
 
 
+@contextmanager
+def _recording_texts(out):
+    """Record each Text matplotlib paints. Tick labels outside the view
+    still exist as objects but are never drawn, so this is the only reliable
+    list of what is on screen."""
+    original = Text.draw
+
+    def draw(self, renderer):
+        out.append(self)
+        return original(self, renderer)
+    Text.draw = draw
+    try:
+        yield
+    finally:
+        Text.draw = original
+
+
 class FrameRenderer:
     def __init__(self, theme, dpi=None):
         self.theme = theme
@@ -101,7 +120,8 @@ class FrameRenderer:
             for m in sorted(mobjects, key=lambda m: m.z):
                 ctx.ax = ctx.canvas
                 m.render(ctx)
-            self.fig.canvas.draw()
+            with _recording_texts(ctx.drawn_texts):
+                self.fig.canvas.draw()
         return ctx
 
     def image(self):

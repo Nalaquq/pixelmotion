@@ -47,8 +47,11 @@ class Text(Mobject):
 
     Notes
     -----
-    ``Create``/``Write`` reveal it left to right.
+    ``Create``/``Write`` reveal it left to right. Transforming to different
+    text fades the old text out before the new one fades in.
     """
+
+    crossfade_style = "sequential"
 
     def __init__(self, text, pos=None, size=None, color=TEXT, weight="normal",
                  style="normal", ha="center", va="center", family=None,

@@ -1,5 +1,6 @@
 """Scene: build an animation step by step, then render it to GIF or PNG."""
 
+import dataclasses
 import os
 import re
 import warnings
@@ -12,6 +13,21 @@ from .overlap import OverlapReport, check_frame
 
 class OverlapError(RuntimeError):
     pass
+
+
+SMOOTHNESS = {"slide": 500, "smooth": 200, "fluid": 100}
+"""Named frame lengths (ms) for the ``smoothness`` render option."""
+
+
+def frame_ms_for(smoothness):
+    """Frame length in ms for a preset name or a number of milliseconds."""
+    if isinstance(smoothness, str):
+        try:
+            return SMOOTHNESS[smoothness]
+        except KeyError:
+            raise ValueError(f"smoothness must be one of {sorted(SMOOTHNESS)} or a number "
+                             f"of milliseconds, not {smoothness!r}") from None
+    return int(smoothness)
 
 
 class Scene:
@@ -100,8 +116,19 @@ class Scene:
         self._timeline.append(([m.copy() for m in self.mobjects], duration_ms))
 
     # ── Rendering ──────────────────────────────────────────────────────
-    def build(self):
+    def build(self, smoothness=None):
+        """Run ``setup`` and ``construct`` to record frames.
+
+        Re-records when ``smoothness`` asks for a different frame length;
+        ``run_time`` stays in seconds, so only the frame count changes.
+        """
+        if smoothness is not None:
+            ms = frame_ms_for(smoothness)
+            if ms != self.theme.frame_ms:
+                self.theme = dataclasses.replace(self.theme, frame_ms=ms)
+                self._built = False
         if not self._built:
+            self.mobjects, self._timeline = [], []
             self.setup()
             self.construct()
             if not self._timeline:
@@ -113,9 +140,9 @@ class Scene:
     def n_frames(self):
         return len(self.build()._timeline)
 
-    def frames(self, dpi=None, check_overlaps=True):
+    def frames(self, dpi=None, check_overlaps=True, smoothness=None):
         """Yield ``(PIL.Image, duration_ms)`` for every recorded frame."""
-        self.build()
+        self.build(smoothness)
         renderer = FrameRenderer(self.theme, dpi)
         report = self.overlap_report = OverlapReport()
         last = len(self._timeline) - 1
@@ -125,14 +152,25 @@ class Scene:
                 check_frame(ctx, renderer.renderer, i, report)
             yield renderer.image(), (self.theme.final_hold_ms if i == last else ms)
 
-    def render_gif(self, path=None, dpi=None, check_overlaps=True, strict=False):
+    def render_gif(self, path=None, dpi=None, smoothness=None, check_overlaps=True,
+                   strict=False):
         """Render every frame to a GIF (loop and final hold from the theme).
 
-        ``dpi`` lowers resolution for quick drafts (e.g. ``dpi=50``).
-        Overlapping labels are reported as warnings, or raise if ``strict``.
+        Parameters
+        ----------
+        path : str, optional
+            Output file (default: the scene's class name in snake_case).
+        dpi : int, optional
+            Lower it for quick drafts (e.g. ``dpi=50``); default ``theme.dpi``.
+        smoothness : {"slide", "smooth", "fluid"} or int, optional
+            Frame length: "slide" = 500 ms (the course style), "smooth" =
+            200 ms, "fluid" = 100 ms, or a number of milliseconds. Smoother
+            GIFs have more frames and are larger; the timing is the same.
+        check_overlaps, strict : bool
+            Report overlapping labels as warnings, or raise ``OverlapError``.
         """
         path = self._out_path(path, ".gif")
-        self.build()
+        self.build(smoothness)
         durations = [ms for _, ms in self._timeline]
         durations[-1] = self.theme.final_hold_ms
         images = (img for img, _ in self.frames(dpi, check_overlaps))
@@ -144,9 +182,10 @@ class Scene:
         print(f"Saved {path} ({len(durations)} frames)")
         return path
 
-    def render_png(self, path=None, frame=-1, dpi=None, check_overlaps=True, strict=False):
+    def render_png(self, path=None, frame=-1, dpi=None, smoothness=None, check_overlaps=True,
+                   strict=False):
         """Render a single frame (default: the last) to PNG."""
-        self.build()
+        self.build(smoothness)
         path = self._out_path(path, ".png")
         snapshot, _ = self._timeline[frame]
         renderer = FrameRenderer(self.theme, dpi)
@@ -160,11 +199,11 @@ class Scene:
         print(f"Saved {path}")
         return path
 
-    def render_frames(self, out_dir, dpi=None):
+    def render_frames(self, out_dir, dpi=None, smoothness=None):
         """Write every frame as a numbered PNG (useful for review)."""
         os.makedirs(out_dir, exist_ok=True)
         paths = []
-        for i, (img, _) in enumerate(self.frames(dpi)):
+        for i, (img, _) in enumerate(self.frames(dpi, smoothness=smoothness)):
             p = os.path.join(out_dir, f"frame_{i:03d}.png")
             img.save(p)
             paths.append(p)

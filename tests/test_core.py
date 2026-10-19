@@ -18,8 +18,16 @@ def test_numbers_and_colors_interpolate():
 
 def test_different_text_crossfades():
     mid = interpolate_mobject(Text("a"), Text("b"), 0.3)
-    start, end, alpha = mid._crossfade
-    assert (start.text, end.text, alpha) == ("a", "b", 0.3)
+    start, end, alpha, own_only = mid._crossfade
+    assert (start.text, end.text, alpha, own_only) == ("a", "b", 0.3, False)
+
+
+def test_panel_image_blends_while_title_interpolates_separately():
+    a = ImagePanel(np.zeros((4, 4)), (0, 0, 4, 4), title="before")
+    b = ImagePanel(np.ones((4, 4)), (0, 0, 4, 4), title="after")
+    mid = interpolate_mobject(a, b, 0.5)
+    assert mid._crossfade[3] is True                    # own image cross-fades
+    assert mid.title._crossfade[0].text == "before"     # title handled on its own
 
 
 def test_matrix_label_change_keeps_entries_interpolating():

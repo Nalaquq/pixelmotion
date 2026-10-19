@@ -65,6 +65,8 @@ class Plane(Mobject):
     warps the grid and everything on it (animate with :class:`ApplyMatrix`).
     """
 
+    _children_in_own_space = True
+
     def __init__(self, rect, x_range=(-5, 5, 1), y_range=(-4, 4, 1), grid=True, numbers=True,
                  axis_labels=None, equal_aspect=True, grid_color=GRID, ghost=True, **kwargs):
         super().__init__(**kwargs)
