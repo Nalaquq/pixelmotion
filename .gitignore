@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+out/
+site/
+# rendered by scripts/build_gallery.py (in CI for the docs site)
+docs/assets/gallery/

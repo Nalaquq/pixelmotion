@@ -1,0 +1,75 @@
+site_name: pixelmotion
+site_description: Manim-style animated slides for math and computer vision
+site_url: https://nalaquq.github.io/pixelmotion/
+repo_url: https://github.com/Nalaquq/pixelmotion
+repo_name: Nalaquq/pixelmotion
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: orange
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: orange
+      toggle: {icon: material/weather-sunny, name: Light mode}
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - What you can draw:
+      - Text & shapes: draw/basics.md
+      - Slides & layout: draw/slides.md
+      - Linear algebra: draw/linalg.md
+      - Images: draw/image.md
+      - Filtering & convolution: draw/filters.md
+      - Coming next: draw/roadmap.md
+  - Building scenes:
+      - Scenes & rendering: guide/scenes.md
+      - Animations: guide/animations.md
+      - Positioning: guide/positioning.md
+      - Overlap checker: guide/overlaps.md
+      - Writing new objects: guide/extending.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 3
+            members_order: source
+            filters: ["!^_"]
+            merge_init_into_class: true
+            show_signature_annotations: false
+            separate_signature: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - toc:
+      permalink: true
