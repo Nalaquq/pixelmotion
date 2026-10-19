@@ -34,6 +34,7 @@ nav:
       - Linear algebra: draw/linalg.md
       - Images: draw/image.md
       - Filtering & convolution: draw/filters.md
+      - Edges: draw/edges.md
       - Coming next: draw/roadmap.md
   - Building scenes:
       - Scenes & rendering: guide/scenes.md

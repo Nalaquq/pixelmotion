@@ -25,8 +25,8 @@ BoxBlur().render_gif("box_blur.gif")
 ```
 
 - **Objects for what you teach.** Matrices, vectors, planes and linear maps,
-  pixel grids, kernels, and convolution, with edges, features, detection, ML,
-  and neural nets on the roadmap.
+  pixel grids, kernels, convolution, gradients, and every step of Canny, with
+  features, detection, ML, and neural nets on the roadmap.
 - **Slides, not videos.** 16:9 GIF/PNG output sized for PowerPoint.
 - **Catches layout bugs.** Every frame is checked for colliding labels,
   including mid-animation.

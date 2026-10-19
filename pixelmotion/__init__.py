@@ -1,17 +1,21 @@
 """pixelmotion: manim-style animated slides for math and computer vision.
 
-``from pixelmotion import *`` brings in everything, like manim. The same
-names are also available by domain, e.g. ``pixelmotion.linalg.Matrix``.
+``from pixelmotion import *`` brings in every drawable object and animation,
+like manim. Everything is also available by domain, e.g.
+``pixelmotion.linalg.Matrix``; algorithms live in their domain
+(``pixelmotion.edges.canny``) and sample images in ``pixelmotion.data``.
 """
 
 import matplotlib
 
 matplotlib.use("Agg")
 
-from . import rate_functions  # noqa: E402
+from . import data, edges, rate_functions  # noqa: E402,F401
 from .animation import *  # noqa: E402,F401,F403
 from .basics import *  # noqa: E402,F401,F403
 from .core import *  # noqa: E402,F401,F403
+from .edges import (EdgeProfile, GradientDiagram, GradientField, Hysteresis,  # noqa: E402,F401
+                    NonMaxSuppression)
 from .filters import *  # noqa: E402,F401,F403
 from .image import *  # noqa: E402,F401,F403
 from .linalg import *  # noqa: E402,F401,F403

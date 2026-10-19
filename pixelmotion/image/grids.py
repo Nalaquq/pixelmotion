@@ -2,10 +2,23 @@
 
 import numpy as np
 from matplotlib import colormaps
-from matplotlib.colors import Normalize, to_rgba
+from matplotlib.colors import Colormap, ListedColormap, Normalize, to_rgba
 
+from ..basics.text import Text
 from ..core.mobject import Mobject
-from ..theme import DEFAULT_THEME, PANEL_BG, SUB, TEXT
+from ..theme import DEFAULT_THEME, ORANGE, PANEL_BG, SUB, TEXT
+
+LABEL_CMAP = ListedColormap(["#111111", ORANGE, "#FFFFFF"], name="none_weak_strong")
+"""Colors for 0 / 1 / 2 label images (e.g. Canny's none / weak / strong)."""
+
+
+def resolve_cmap(cmap):
+    """A Colormap from a name, a Colormap, or "labels" (:data:`LABEL_CMAP`)."""
+    if cmap is None or isinstance(cmap, Colormap):
+        return cmap
+    if cmap == "labels":
+        return LABEL_CMAP
+    return colormaps[cmap]
 
 
 class PixelGrid(Mobject):
@@ -20,13 +33,16 @@ class PixelGrid(Mobject):
         Canvas position (default: canvas center).
     cell : float
         Cell size in canvas units (inches).
-    cmap : str or None
-        Matplotlib colormap for cell colors, or None for a flat ``fill``.
+    cmap : str, Colormap, or None
+        Colormap for cell colors ("labels" for 0/1/2 label images), or None
+        for a flat ``fill``.
     vmin, vmax : float
         Color scale limits (default 0-255).
     show_values : bool
     fmt : str
         Format for values, e.g. ``"{:.0f}"`` or ``"{:.2f}"``.
+    value_labels : dict, optional
+        Text to show instead of certain values, e.g. ``{0: "", 1: "W", 2: "S"}``.
     label : str, optional
         Caption above the grid.
 
@@ -38,9 +54,10 @@ class PixelGrid(Mobject):
     def __init__(self, values, center=None, cell=0.5, cmap="gray", vmin=0, vmax=255,
                  show_values=True, fmt="{:.0f}", value_size=None, fill=PANEL_BG,
                  grid_color="#888888", border_color=TEXT, label=None, label_color=TEXT,
-                 **kwargs):
+                 value_labels=None, **kwargs):
         super().__init__(**kwargs)
         self.values = np.array(values, float)
+        self.value_labels = value_labels
         th = DEFAULT_THEME
         self.center = np.array(center if center is not None else (th.width / 2, th.height / 2),
                                float)
@@ -90,6 +107,10 @@ class PixelGrid(Mobject):
         return self.values
 
     def format_value(self, v):
+        if self.value_labels is not None:
+            key = int(v) if float(v).is_integer() else v
+            if key in self.value_labels:
+                return self.value_labels[key]
         return self.fmt.format(v).replace("-", "−")
 
     def own_bbox(self):
@@ -108,7 +129,7 @@ class PixelGrid(Mobject):
             rgba = np.tile(to_rgba(self.fill_color), (h, w, 1))
         else:
             norm = Normalize(self.vmin, self.vmax, clip=True)
-            rgba = colormaps[self.cmap](norm(np.nan_to_num(self.values)))
+            rgba = resolve_cmap(self.cmap)(norm(np.nan_to_num(self.values)))
         rgba[np.isnan(self.values)] = to_rgba(PANEL_BG)
         return rgba
 
@@ -154,8 +175,11 @@ class ImagePanel(Mobject):
     image : array (H x W or H x W x 3/4) or str path
     rect : Region or (x, y, w, h)
         Canvas area; the image keeps its aspect ratio inside it.
-    cmap : str, optional
-        For single-channel images (default "gray").
+    cmap : str or Colormap, optional
+        For single-channel images (default "gray"; "labels" for 0/1/2 maps).
+    signed : bool
+        For images with negative values (e.g. Sobel Gx): a red/blue scale
+        centred on zero, so sign reads as color.
     title : str, optional
         Caption above the image.
 
@@ -166,19 +190,40 @@ class ImagePanel(Mobject):
 
     _no_copy = Mobject._no_copy + ("image",)
 
-    def __init__(self, image, rect, cmap="gray", vmin=None, vmax=None, title=None,
-                 title_color=TEXT, border=False, **kwargs):
+    def __init__(self, image, rect, cmap="gray", vmin=None, vmax=None, signed=False,
+                 title=None, title_color=TEXT, title_size=14, border=False, **kwargs):
         super().__init__(**kwargs)
         if isinstance(image, str):
             from PIL import Image
             image = np.asarray(Image.open(image))
         self.image = np.asarray(image)
+        if signed:
+            m = float(np.abs(self.image).max()) or 1.0
+            cmap = "RdBu_r" if cmap == "gray" else cmap
+            vmin, vmax = (-m, m) if vmin is None else (vmin, vmax)
+        elif cmap == "labels" and vmin is None:
+            vmin, vmax = 0, 2
         self.rect = np.array(getattr(rect, "rect", rect), float)
         self.cmap = cmap
         self.vmin, self.vmax = vmin, vmax
-        self.title = title
-        self.title_color = title_color
         self.border = border
+        if title:
+            x0, _, x1, y1 = self.image_box()
+            self.add(Text(title, pos=((x0 + x1) / 2, y1 + 0.1), size=title_size,
+                          color=title_color, weight="bold", va="bottom", name="title"))
+
+    def image_box(self):
+        """(x0, y0, x1, y1) of the image itself inside ``rect`` (aspect kept)."""
+        x, y, w, h = self.rect
+        H, W = self.image.shape[:2]
+        s = min(w / W, h / H)
+        iw, ih = W * s, H * s
+        return (x + (w - iw) / 2, y + (h - ih) / 2, x + (w + iw) / 2, y + (h + ih) / 2)
+
+    @property
+    def title(self):
+        """The caption (a Text), or None."""
+        return next((m for m in self.submobjects if m.name == "title"), None)
 
     def own_bbox(self):
         x, y, w, h = self.rect
@@ -189,7 +234,7 @@ class ImagePanel(Mobject):
 
     def draw(self, ctx, alpha, progress):
         ax = ctx.new_axes(tuple(self.rect))
-        ax.imshow(self.image, cmap=self.cmap if self.image.ndim == 2 else None,
+        ax.imshow(self.image, cmap=resolve_cmap(self.cmap) if self.image.ndim == 2 else None,
                   vmin=self.vmin, vmax=self.vmax, alpha=alpha * progress, interpolation="nearest")
         ax.set_xticks([])
         ax.set_yticks([])
@@ -197,7 +242,4 @@ class ImagePanel(Mobject):
             s.set_visible(self.border)
             s.set_color(SUB)
         ax.patch.set_alpha(0)
-        if self.title:
-            ax.set_title(self.title, fontsize=14, color=self.title_color, weight="bold",
-                         alpha=alpha, pad=8)
         ctx.ax = ctx.canvas

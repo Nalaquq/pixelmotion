@@ -4,8 +4,7 @@ Domains planned from the course slide scripts, roughly in order:
 
 | Domain | Objects |
 |---|---|
-| **Calculus** | `Graph` / `Curve`, `Derivative` (tangent line), `Surface3D`, `GradientField`, `CostLandscape` + `GradientDescent` path |
-| **Edges** | Sobel x/y gradients, gradient magnitude and direction arrows, Canny steps (NMS, hysteresis), Laplacian / DoG |
+| **Calculus** | `Graph` / `Curve`, `Derivative` (tangent line), `Surface3D` (e.g. the Laplacian "sombrero"), `CostLandscape` + `GradientDescent` path |
 | **Features** | `Keypoints`, Harris response, `FeatureMatches` between two images, descriptors |
 | **Geometry** | `Homography` warp, `RANSAC` inliers and outliers |
 | **Detection** | `BoundingBoxes`, `IoU`, `NMS` sequence, precision/recall |

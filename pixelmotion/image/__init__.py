@@ -1,5 +1,6 @@
-"""Images: pixel grids with values and full image panels."""
+"""Images: pixel grids with values, full image panels, and step-by-step pipelines."""
 
-from .grids import ImagePanel, PixelGrid
+from .grids import LABEL_CMAP, ImagePanel, PixelGrid
+from .pipeline import ImagePipeline
 
-__all__ = ["ImagePanel", "PixelGrid"]
+__all__ = ["LABEL_CMAP", "ImagePanel", "ImagePipeline", "PixelGrid"]

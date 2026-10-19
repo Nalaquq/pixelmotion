@@ -26,11 +26,13 @@ MeanCentering().render_gif("mean_centering.gif")
 ## Why pixelmotion?
 
 - **Objects for the things you teach.** Matrices, vectors, coordinate planes,
-  pixel grids, kernels, convolution sweeps, with more domains on the way.
+  pixel grids, kernels, convolution sweeps, gradients, and every step of
+  Canny edge detection, with more domains on the way.
 - **Real data stays easy.** It is matplotlib underneath, so real photos,
   plots, and 3D surfaces work out of the box.
 - **Slides, not videos.** Output is GIF/PNG sized for PowerPoint (16:9,
-  2400×1350), styled to a consistent course look.
+  2400×1350), styled to a consistent course look. You choose how smooth the
+  animation is when you render.
 - **Catches layout bugs.** Every frame is checked for labels that collide
   with each other or sit on top of arrows, including mid-animation.
 
